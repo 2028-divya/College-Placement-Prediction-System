@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import sys
 from pathlib import Path
+from src.training_recommendations import add_training_recommendations
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR))
@@ -112,6 +113,10 @@ try:
 
         results = load_sample_data()
 
+
+    # Generate academic training recommendations
+    results = add_training_recommendations(results)
+
     # Dashboard KPIs
     total_students = len(results)
 
@@ -188,6 +193,59 @@ try:
         use_container_width=True,
         hide_index=True
     )
+
+    st.divider()
+
+    # Academic Training Recommendations
+    st.subheader("📚 Academic Training Recommendations")
+
+    training_counts = (
+        results["recommended_training"]
+        .str.split(", ")
+        .explode()
+        .value_counts()
+    )
+
+    training_col1, training_col2 = st.columns(2)
+
+    with training_col1:
+        st.write("Training-wise Student Count")
+        st.bar_chart(training_counts)
+
+    with training_col2:
+        selected_training = st.selectbox(
+            "Select Training Area",
+            ["All"] + sorted(
+                results["recommended_training"]
+                .str.split(", ")
+                .explode()
+                .unique()
+                .tolist()
+            )
+        )
+
+        if selected_training == "All":
+            training_students = results[
+                results["recommended_training"] !=
+                "No Immediate Training Required"
+            ]
+        else:
+            training_students = results[
+                results["recommended_training"].str.contains(
+                    selected_training,
+                    regex=False
+                )
+            ]
+
+        st.write(f"Students requiring this training: {len(training_students)}")
+
+        st.dataframe(
+            training_students[
+                ["student_id", "cgpa", "recommended_training"]
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
 
 except Exception as e:
     st.error(f"Something went wrong: {e}")
