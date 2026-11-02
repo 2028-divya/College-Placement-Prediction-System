@@ -2,11 +2,17 @@
 import streamlit as st
 import pandas as pd
 import sys
+import json
 from pathlib import Path
 from src.training_recommendations import add_training_recommendations
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR))
+
+REPORT_PATH = BASE_DIR / "reports" / "model_evaluation.json"
+
+with open(REPORT_PATH, "r") as file:
+    evaluation = json.load(file)
 
 from src.predict import predict_placements
 
@@ -136,6 +142,42 @@ try:
     st.divider()
     st.subheader("📊 Placement Overview")
 
+    # Model Performance
+    st.divider()
+    st.subheader("🤖 Model Test Performance")
+
+    st.caption(
+        "Performance metrics evaluated on the held-out synthetic test dataset (200 records). "
+        "These metrics do not represent accuracy on uploaded student data."
+    )
+
+    metric1, metric2, metric3, metric4, metric5 = st.columns(5)
+
+    metric1.metric(
+        "Accuracy",
+        f"{evaluation['accuracy'] * 100:.2f}%"
+    )
+
+    metric2.metric(
+        "Precision",
+        f"{evaluation['precision'] * 100:.2f}%"
+    )
+
+    metric3.metric(
+        "Recall",
+        f"{evaluation['recall'] * 100:.2f}%"
+    )
+
+    metric4.metric(
+        "F1 Score",
+        f"{evaluation['f1_score'] * 100:.2f}%"
+    )
+
+    metric5.metric(
+        "ROC-AUC",
+        f"{evaluation['roc_auc'] * 100:.2f}%"
+    )
+
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric("Total Students", total_students)
@@ -144,6 +186,46 @@ try:
     col4.metric("Predicted Placement Rate", f"{placement_rate:.2f}%")
 
     st.divider()
+
+    # Confusion Matrix
+    st.write("### Confusion Matrix")
+
+    confusion_data = pd.DataFrame(
+        evaluation["confusion_matrix"],
+        index=["Actual Not Placed", "Actual Placed"],
+        columns=["Predicted Not Placed", "Predicted Placed"]
+    )
+
+    st.dataframe(
+        confusion_data,
+        use_container_width=True
+    )
+
+    # Classification Report
+    st.write("### Class-wise Performance")
+
+    classification_data = pd.DataFrame(
+        evaluation["classification_report"]
+    ).transpose()
+
+    classification_data = classification_data.drop(
+        index=["accuracy"]
+    )
+
+    st.dataframe(
+        classification_data,
+        use_container_width=True
+    )
+
+    # Class-wise Performance Chart
+    st.write("### Class-wise Metrics Comparison")
+
+    class_metrics = classification_data.loc[
+        ["Not Placed", "Placed"],
+        ["precision", "recall", "f1-score"]
+    ]
+
+    st.bar_chart(class_metrics)
 
     # Analytics charts
     st.subheader("📈 Placement Analytics")

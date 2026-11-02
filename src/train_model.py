@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import pickle
+import json
 
 from pathlib import Path
 
@@ -130,6 +131,13 @@ roc_auc = roc_auc_score(
     y_probability
 )
 
+# Generate classification report
+class_report = classification_report(
+    y_test,
+    y_pred,
+    output_dict=True,
+    zero_division=0
+)
 
 print("\n----- MODEL EVALUATION -----")
 
@@ -159,6 +167,34 @@ print(
     )
 )
 
+# Prepare evaluation results
+evaluation_results = {
+    "accuracy": float(accuracy),
+    "precision": float(precision),
+    "recall": float(recall),
+    "f1_score": float(f1),
+    "roc_auc": float(roc_auc),
+    "confusion_matrix": confusion_matrix(
+        y_test,
+        y_pred,
+        labels=["Not Placed", "Placed"]
+    ).tolist(),
+    "classification_report": class_report
+}
+
+# Save evaluation report
+REPORT_PATH = BASE_DIR / "reports" / "model_evaluation.json"
+
+REPORT_PATH.parent.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+with open(REPORT_PATH, "w") as file:
+    json.dump(evaluation_results, file, indent=4)
+
+print("\nEvaluation report saved successfully!")
+print("Report location:", REPORT_PATH)
 
 # Save trained model
 MODEL_PATH.parent.mkdir(
