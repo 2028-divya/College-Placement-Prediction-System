@@ -5,6 +5,11 @@ import sys
 import json
 from pathlib import Path
 from src.training_recommendations import add_training_recommendations
+from src.analytics import (
+    get_cgpa_distribution,
+    get_cgpa_placement_analysis,
+    get_academic_performance_categories
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR))
@@ -328,6 +333,30 @@ try:
             use_container_width=True,
             hide_index=True
         )
+
+    st.divider()
+    st.subheader("📊 Academic Performance Analytics")
+
+    # 1. CGPA Distribution
+    st.write("### CGPA-wise Student Distribution")
+
+    cgpa_distribution = get_cgpa_distribution(results)
+
+    st.bar_chart(cgpa_distribution)
+
+    # 2. CGPA vs Predicted Placement
+    st.write("### CGPA Range vs Predicted Placement")
+
+    cgpa_placement = get_cgpa_placement_analysis(results)
+
+    st.bar_chart(cgpa_placement)
+
+    # 3. Academic Performance Categories
+    st.write("### Academic Performance Categories")
+
+    academic_categories = get_academic_performance_categories(results)
+
+    st.bar_chart(academic_categories)
 
 except Exception as e:
     st.error(f"Something went wrong: {e}")
