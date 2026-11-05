@@ -8,7 +8,11 @@ from src.training_recommendations import add_training_recommendations
 from src.analytics import (
     get_cgpa_distribution,
     get_cgpa_placement_analysis,
-    get_academic_performance_categories
+    get_academic_performance_categories,
+    get_skill_average_scores,
+    get_skill_performance_categories,
+    get_skill_gap_analysis,
+    get_skill_training_priority
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -357,6 +361,29 @@ try:
     academic_categories = get_academic_performance_categories(results)
 
     st.bar_chart(academic_categories)
+
+    st.divider()
+    st.subheader("🛠️ Skill Gap Analytics")
+
+    # 1. Average Skill Scores
+    st.write("### Average Skill Scores")
+    skill_averages = get_skill_average_scores(results)
+    st.bar_chart(skill_averages)
+
+    # 2. Skill Performance Categories
+    st.write("### Skill Performance Categories")
+    skill_categories = get_skill_performance_categories(results)
+    st.bar_chart(skill_categories)
+
+    # 3. Skill Gap Analysis
+    st.write("### Students Needing Skill Improvement")
+    skill_gaps = get_skill_gap_analysis(results)
+    st.bar_chart(skill_gaps)
+
+    # 4. Skill Training Priority
+    st.write("### Skill Training Priority")
+    skill_priority = get_skill_training_priority(results)
+    st.dataframe(skill_priority)
 
 except Exception as e:
     st.error(f"Something went wrong: {e}")

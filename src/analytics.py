@@ -71,12 +71,90 @@ def get_academic_performance_categories(df):
     result["academic_category"] = pd.cut(
         result["cgpa"],
         bins=[0, 6, 7.5, 10],
-        labels=[
-            "Needs Improvement",
-            "Satisfactory",
-            "Good"
-        ],
+        labels=["Needs Improvement", "Satisfactory", "Good"],
         include_lowest=True
     )
 
     return result["academic_category"].value_counts().sort_index()
+
+def get_skill_average_scores(df):
+    """
+    Calculates average scores for different skill areas.
+    """
+
+    skill_columns = [
+        "aptitude_score",
+        "technical_skills_score",
+        "communication_skills_score"
+    ]
+
+    average_scores = df[skill_columns].mean()
+
+    return average_scores
+
+def get_skill_performance_categories(df):
+    """
+    Categorizes student performance in different skills.
+    """
+
+    skill_columns = [
+        "aptitude_score",
+        "technical_skills_score",
+        "communication_skills_score"
+    ]
+
+    results = {}
+
+    for skill in skill_columns:
+
+        results[skill] = pd.cut(
+            df[skill],
+            bins=[-1, 50, 70, 101],
+            labels=["Needs Improvement", "Average", "Good"],
+            right=False
+        ).value_counts().sort_index()
+
+    return pd.DataFrame(results)
+
+def get_skill_gap_analysis(df):
+    """
+    Counts students needing improvement in each skill.
+    """
+
+    skill_columns = [
+        "aptitude_score",
+        "technical_skills_score",
+        "communication_skills_score"
+    ]
+
+    skill_gaps = {}
+
+    for skill in skill_columns:
+        skill_gaps[skill] = (df[skill] < 50).sum()
+
+    return pd.Series(skill_gaps)
+
+def get_skill_training_priority(df):
+    """
+    Ranks skill areas based on the number of students
+    needing improvement.
+    """
+
+    gap_counts = get_skill_gap_analysis(df)
+
+    priority = pd.DataFrame({
+        "students_needing_improvement": gap_counts
+    })
+
+    priority["priority_rank"] = (
+        priority["students_needing_improvement"]
+        .rank(method="dense", ascending=False)
+        .astype(int)
+    )
+
+    priority = priority.sort_values(
+        by="students_needing_improvement",
+        ascending=False
+    )
+
+    return priority
