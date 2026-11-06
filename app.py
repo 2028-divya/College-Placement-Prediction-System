@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import sys
 import json
+import io
 from pathlib import Path
 from src.training_recommendations import add_training_recommendations
 from src.analytics import (
@@ -12,7 +13,8 @@ from src.analytics import (
     get_skill_average_scores,
     get_skill_performance_categories,
     get_skill_gap_analysis,
-    get_skill_training_priority
+    get_skill_training_priority,
+    get_placement_probability_analysis
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -132,6 +134,42 @@ try:
     # Generate academic training recommendations
     results = add_training_recommendations(results)
 
+    # Download Prediction Reports
+
+    st.divider()
+    st.subheader("📥 Download Prediction Reports")
+
+    report_columns = [
+        "student_id",
+        "predicted_placement",
+        "placement_probability",
+        "risk_level",
+        "recommended_training"
+    ]
+
+    report_data = results[report_columns]
+
+    csv_report = report_data.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="⬇️ Download CSV Report",
+        data=csv_report,
+        file_name="placement_prediction_report.csv",
+        mime="text/csv"
+    )
+
+    excel_buffer = io.BytesIO()
+
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        report_data.to_excel(writer, index=False, sheet_name="Placement Report")
+
+    st.download_button(
+        label="⬇️ Download Excel Report",
+        data=excel_buffer.getvalue(),
+        file_name="placement_prediction_report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
     # Dashboard KPIs
     total_students = len(results)
 
@@ -195,6 +233,63 @@ try:
     col4.metric("Predicted Placement Rate", f"{placement_rate:.2f}%")
 
     st.divider()
+    st.subheader("📋 Management Summary")
+
+    # Students requiring support
+    support_mask = (
+        (results["risk_level"] != "Low") |
+        (results["recommended_training"] != "No Immediate Training Required")
+    )
+
+    students_requiring_support = support_mask.sum()
+
+    # High-priority students
+    high_priority_students = (
+        results["risk_level"] == "High"
+    ).sum()
+
+    # Students requiring academic support
+    academic_support = results["recommended_training"].str.contains(
+        "Academic Improvement|Backlog Support",
+        regex=True
+    ).sum()
+
+    # Students needing skill improvement
+    skill_columns = [
+        "aptitude_score",
+        "technical_skills_score",
+        "communication_skills_score"
+    ]
+
+    skill_support = (
+        results[skill_columns] < 50
+    ).any(axis=1).sum()
+
+    summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
+
+    summary_col1.metric(
+        "Students Requiring Support",
+        students_requiring_support
+    )
+
+    summary_col2.metric(
+        "High-Priority Students",
+        high_priority_students
+    )
+
+    summary_col3.metric(
+        "Academic Support Needed",
+        academic_support
+    )
+
+    summary_col4.metric(
+        "Skill Improvement Needed",
+        skill_support
+    )
+
+    st.divider()
+
+    
 
     # Confusion Matrix
     st.write("### Confusion Matrix")
@@ -248,6 +343,13 @@ try:
     with chart_col2:
         st.write("Student Support Priority")
         st.bar_chart(results["risk_level"].value_counts())
+
+    # Placement Probability Analysis
+    st.write("### Placement Probability Distribution")
+
+    probability_analysis = get_placement_probability_analysis(results)
+
+    st.bar_chart(probability_analysis)
 
     st.divider()
 

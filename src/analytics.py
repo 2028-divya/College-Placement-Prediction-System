@@ -158,3 +158,26 @@ def get_skill_training_priority(df):
     )
 
     return priority
+
+def get_placement_probability_analysis(df):
+    """
+    Groups students according to their predicted
+    placement probability.
+    """
+
+    result = df.copy()
+
+    result["probability_range"] = pd.cut(
+        result["placement_probability"],
+        bins=[0, 20, 40, 60, 80, 100],
+        labels=[
+            "0-20%",
+            "20-40%",
+            "40-60%",
+            "60-80%",
+            "80-100%"
+        ],
+        include_lowest=True
+    )
+
+    return result["probability_range"].value_counts().sort_index()

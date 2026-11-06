@@ -5,6 +5,7 @@ from src.analytics import (
     get_cgpa_placement_analysis,
     get_academic_performance_categories
 )
+from src.analytics import get_placement_probability_analysis
 
 # Sample student data
 data = {
@@ -73,3 +74,14 @@ result = get_skill_training_priority(df)
 
 print("\n--- Skill Training Priority ---")
 print(result)
+
+# Test Placement Probability Analysis
+
+sample_data = pd.DataFrame({
+    "placement_probability": [
+        10, 25, 35, 45, 55, 65, 75, 85, 95
+    ]
+})
+
+print("\nPlacement Probability Analysis:")
+print(get_placement_probability_analysis(sample_data))
