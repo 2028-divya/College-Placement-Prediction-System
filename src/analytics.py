@@ -90,6 +90,14 @@ def get_skill_average_scores(df):
 
     average_scores = df[skill_columns].mean()
 
+    average_scores = average_scores.rename(
+        index={
+            "aptitude_score": "Aptitude",
+            "technical_skills_score": "Technical",
+            "communication_skills_score": "Communication"
+        }
+    )
+
     return average_scores
 
 def get_skill_performance_categories(df):
@@ -132,7 +140,17 @@ def get_skill_gap_analysis(df):
     for skill in skill_columns:
         skill_gaps[skill] = (df[skill] < 50).sum()
 
-    return pd.Series(skill_gaps)
+    skill_gaps = pd.Series(skill_gaps)
+
+    skill_gaps = skill_gaps.rename(
+        index={
+            "aptitude_score": "Aptitude",
+            "technical_skills_score": "Technical",
+            "communication_skills_score": "Communication"
+        }
+    )
+
+    return skill_gaps
 
 def get_skill_training_priority(df):
     """

@@ -1,29 +1,67 @@
-
 # 🎓 College Placement Prediction System
 
-A Machine Learning-based web application designed for College Placement Cells and Administrators to analyze student placement data, predict placement outcomes, and identify students who may benefit from additional academic support.
+A Machine Learning-based web application designed for College Placement Cells and Administrators to analyze student placement data, estimate placement outcomes, identify students who may benefit from additional support, and explore placement-related insights through an interactive analytics dashboard.
 
 ## 🚀 Features
 
+### 1. Student Data Management
 - Bulk student dataset upload using CSV and Excel files
-- Data validation and preprocessing
-- Placement prediction using Logistic Regression
+- Dataset validation and preprocessing
+- Automatic student ID generation when IDs are unavailable
+- Uploaded dataset preview
+
+### 2. Placement Prediction
+- Binary placement prediction using Logistic Regression
 - Placement probability estimation
 - Student support priority classification (High, Medium, Low)
-- Interactive placement analytics dashboard
-- Student-wise prediction reports
+- Student-wise prediction results
+
+### 3. Placement Intelligence
+- Individual student prediction analysis
+- Identification of factors contributing to model predictions
+- Positive and negative prediction contributors
+
+### 4. What-If Simulator
+- Interactive simulation of changes in selected student attributes
+- Comparison of original and simulated placement probabilities
+- Exploration of hypothetical academic and skill improvements
+
+### 5. Student Support and Training Recommendations
 - Student support priority filtering
-- Model evaluation using Accuracy, Precision, Recall, F1-Score and ROC-AUC
+- Identification of students requiring additional support
+- Academic training recommendations
+- Skill improvement analysis and training priorities
+
+### 6. Advanced Analytics Dashboard
+- Placement distribution analysis
+- Placement probability distribution
+- Student support priority analysis
+- CGPA-based academic analytics
+- Skill gap analytics
+- Academic performance categories
+
+### 7. Model Evaluation
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+- ROC-AUC
+- Confusion matrix
+- Class-wise performance comparison
+
+### 8. Prediction Reports
+- Downloadable prediction reports in CSV format
+- Downloadable prediction reports in Excel format
 
 ## 🛠️ Technology Stack
 
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- Streamlit
-- Pickle
-- Matplotlib / Streamlit Charts
+- **Programming Language:** Python
+- **Data Processing:** Pandas, NumPy
+- **Machine Learning:** Scikit-learn (Logistic Regression)
+- **Web Framework:** Streamlit
+- **Data Visualization:** Streamlit Charts, Altair
+- **Excel Support:** OpenPyXL
+- **Model Storage:** Pickle
 
 ## 📂 Project Structure
 
@@ -35,6 +73,8 @@ College-Placement-Prediction-System/
 ├── README.md
 ├── .gitignore
 │
+├── assets/
+│
 ├── data/
 │   ├── raw/
 │   └── processed/
@@ -42,15 +82,20 @@ College-Placement-Prediction-System/
 ├── models/
 │
 ├── reports/
-├── assets/
+│   └── model_evaluation.json
 │
-└── src/
-    ├── __init__.py
-    ├── generate_dataset.py
-    ├── data_preprocessing.py
-    ├── train_model.py
-    ├── predict.py
-    └── analytics.py
+├── src/
+│   ├── __init__.py
+│   ├── generate_dataset.py
+│   ├── data_preprocessing.py
+│   ├── train_model.py
+│   ├── predict.py
+│   ├── analytics.py
+│   ├── explainability.py
+│   └── training_recommendations.py
+│
+├── test_analytics.py
+└── test_recommendations.py
 ```
 
 ## ⚙️ Installation and Setup
@@ -58,7 +103,7 @@ College-Placement-Prediction-System/
 ### 1. Clone the repository
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/2028-divya/College-Placement-Prediction-System.git
 ```
 
 ### 2. Open the project folder
@@ -111,39 +156,40 @@ py -m streamlit run app.py
 
 ## 📊 Machine Learning Model
 
-The system currently uses Logistic Regression for binary classification.
+The system uses **Logistic Regression**, a supervised machine learning algorithm for binary classification.
 
-The model predicts:
+The model predicts two possible outcomes:
+
 - Placed
 - Not Placed
 
-It also estimates placement probability and assigns a student support priority category.
+It also estimates placement probability and assigns a support priority category based on the predicted probability.
 
-## 📌 Current Project Status
+Model performance is evaluated using Accuracy, Precision, Recall, F1-Score, ROC-AUC, and a confusion matrix.
 
-**Completed:**
-- Project setup and environment configuration
-- Synthetic dataset generation
-- Data preprocessing
-- Logistic Regression model training and evaluation
-- Student placement prediction module
-- Streamlit analytics dashboard
-- CSV/Excel upload
-- Predictions on uploaded datasets
-- Student support priority filter
+## 🧭 Dashboard Pages
 
-**In Progress:**
-- Academic training recommendations
-- Advanced analytics
-- Final UI improvements
-- Project documentation
+The application provides eight dedicated dashboard pages:
+
+1. **Overview** – Key placement indicators and management summary.
+2. **Placement Intelligence** – Individual student predictions and contributing factors.
+3. **What-If Simulator** – Exploration of hypothetical changes in student attributes.
+4. **Student Support** – Identification and filtering of students by support priority.
+5. **Training Recommendations** – Academic training recommendations.
+6. **Academic Analytics** – CGPA distribution and academic performance analysis.
+7. **Skill Gap Analytics** – Skill performance, gaps, and training priorities.
+8. **Model Performance** – Model evaluation metrics and placement analytics.
 
 ## ⚠️ Important Disclaimer
 
 The current dataset contains synthetically generated student records for demonstration and development purposes.
 
-Predictions are estimates produced by a trained model. They should support, not replace, human review and placement-cell decisions. The model has not yet been validated on real institutional placement data.
+The model's predictions are estimates and should support, not replace, human review and placement-cell decisions. The model has not yet been validated using real institutional placement data.
 
-## 👨‍💻 Project Purpose
+Training recommendations and support priority categories are based on predefined project rules and should not be treated as official institutional standards.
+
+## 🎯 Project Purpose
 
 Developed as a B.Tech third-year mini-project to demonstrate the application of Machine Learning and data analytics in college placement management.
+
+The system aims to help placement-cell administrators explore placement trends, identify potential support requirements, and make more informed decisions using data-driven insights.
