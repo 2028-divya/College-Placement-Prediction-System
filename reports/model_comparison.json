@@ -1,0 +1,60 @@
+{
+    "selection_metric": "Cross-validation F1-score",
+    "selected_model": "Logistic Regression (Unbalanced)",
+    "models": [
+        {
+            "model": "Logistic Regression (Unbalanced)",
+            "cv_accuracy": 0.66125,
+            "cv_precision": 0.6801717314107479,
+            "cv_recall": 0.7537484737484738,
+            "cv_f1": 0.7144989072996042,
+            "cv_roc_auc": 0.722744492222753,
+            "cv_f1_std": 0.025179919389172845
+        },
+        {
+            "model": "Logistic Regression (Balanced)",
+            "cv_accuracy": 0.66375,
+            "cv_precision": 0.7205677870895263,
+            "cv_recall": 0.6606349206349207,
+            "cv_f1": 0.6880194550055199,
+            "cv_roc_auc": 0.7229981419546637,
+            "cv_f1_std": 0.028077289023217784
+        },
+        {
+            "model": "Random Forest (Unbalanced)",
+            "cv_accuracy": 0.62375,
+            "cv_precision": 0.6514942515139666,
+            "cv_recall": 0.7183882783882783,
+            "cv_f1": 0.6827226235981014,
+            "cv_roc_auc": 0.6636425651643043,
+            "cv_f1_std": 0.031178103917863964
+        },
+        {
+            "model": "Random Forest (Balanced)",
+            "cv_accuracy": 0.6312499999999999,
+            "cv_precision": 0.6683787243541527,
+            "cv_recall": 0.6895482295482296,
+            "cv_f1": 0.6780849770319936,
+            "cv_roc_auc": 0.6662585337367947,
+            "cv_f1_std": 0.012806385929497005
+        },
+        {
+            "model": "Decision Tree (Unbalanced)",
+            "cv_accuracy": 0.54625,
+            "cv_precision": 0.5967885801560973,
+            "cv_recall": 0.5963369963369963,
+            "cv_f1": 0.5957031268651036,
+            "cv_roc_auc": 0.5388310240484153,
+            "cv_f1_std": 0.058617246139922495
+        },
+        {
+            "model": "Decision Tree (Balanced)",
+            "cv_accuracy": 0.5287499999999999,
+            "cv_precision": 0.5848004694118257,
+            "cv_recall": 0.5609768009768009,
+            "cv_f1": 0.5723483937243813,
+            "cv_roc_auc": 0.5240494770929554,
+            "cv_f1_std": 0.050902891353357335
+        }
+    ]
+}

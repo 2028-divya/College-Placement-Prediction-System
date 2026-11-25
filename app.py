@@ -7,6 +7,7 @@ import io
 import altair as alt
 from pathlib import Path
 from src.training_recommendations import add_training_recommendations
+from src.data_quality import analyze_data_quality
 from src.analytics import (
     get_cgpa_distribution,
     get_cgpa_placement_analysis,
@@ -21,14 +22,24 @@ from src.explainability import (
     explain_prediction,
     get_top_contributors
 )
+from src.company_drive import (
+    DEFAULT_COMPANY_CRITERIA,
+    evaluate_company_drive,
+    get_company_drive_summary
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR))
 
 REPORT_PATH = BASE_DIR / "reports" / "model_evaluation.json"
+COMPARISON_PATH = BASE_DIR / "reports" / "model_comparison.json"
 
 with open(REPORT_PATH, "r") as file:
     evaluation = json.load(file)
+
+with open(COMPARISON_PATH, "r") as file:
+    comparison = json.load(file)
 
 from src.predict import predict_placements
 
@@ -66,6 +77,7 @@ selected_page = st.sidebar.radio(
     "Navigate to",
     [
         "Overview",
+        "Company Drive Intelligence",
         "Placement Intelligence",
         "What-If Simulator",
         "Student Support",
@@ -140,6 +152,40 @@ try:
                 [f"UPLOAD_{i+1:04d}" for i in range(len(uploaded_df))]
             )
 
+        # Analyze data quality
+        quality_summary, quality_report = analyze_data_quality(uploaded_df)
+
+        # Display data quality summary
+        st.subheader("📊 Data Quality Report")
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric("Total Records", quality_summary["total_records"])
+        col2.metric("Valid Records", quality_summary["valid_records"])
+        col3.metric("Invalid Records", quality_summary["invalid_records"])
+
+        # Display records with issues
+        invalid_records = quality_report[
+            quality_report["has_issues"]
+        ]
+
+        if not invalid_records.empty:
+            st.warning("Some records contain data-quality issues.")
+
+            st.dataframe(
+                invalid_records,
+                use_container_width=True
+            )
+
+        # Keep only valid records
+        valid_mask = ~quality_report["has_issues"]
+
+        uploaded_df = uploaded_df.loc[valid_mask].copy()
+
+        if uploaded_df.empty:
+            st.error("No valid records available for prediction.")
+            st.stop()
+
         # Convert numerical columns
         for col in NUMERIC_COLUMNS:
             uploaded_df[col] = pd.to_numeric(
@@ -147,18 +193,25 @@ try:
                 errors="coerce"
             )
 
-        if uploaded_df[NUMERIC_COLUMNS].isnull().any().any():
-            st.error("Some numerical columns contain missing or invalid values.")
-            st.stop()
+        # Normalize internship categories
+        uploaded_df["internship_experience"] = (
+            uploaded_df["internship_experience"]
+            .astype("string")
+            .str.strip()
+            .str.title()
+        )
 
-        if uploaded_df["internship_experience"].isnull().any():
-            st.error("Internship experience contains missing values.")
-            st.stop()
+        st.success(
+            f"{len(uploaded_df)} valid records ready for prediction."
+        )
 
-        st.write("Uploaded Dataset Preview")
-        st.dataframe(uploaded_df.head(), use_container_width=True)
+        st.write("Valid Uploaded Dataset Preview")
+        st.dataframe(
+            uploaded_df.head(),
+            use_container_width=True
+        )
 
-        # Predict uploaded records
+        # Predict only valid records
         results = predict_placements(uploaded_df)
 
     else:
@@ -175,6 +228,10 @@ try:
 
     # Generate academic training recommendations
     results = add_training_recommendations(results)
+
+    # Preserve complete results for Company Drive analysis
+    
+    all_results = results.copy()
 
 
     # ==========================================
@@ -490,6 +547,11 @@ try:
                     use_container_width=True,
                     hide_index=True
                 )
+
+                st.bar_chart(
+                    positive_factors.set_index("Feature"),
+                    horizontal=True
+                )
             else:
                 st.info("No positive contributing factors found.")
 
@@ -506,6 +568,11 @@ try:
                     negative_factors,
                     use_container_width=True,
                     hide_index=True
+                )
+
+                st.bar_chart(
+                    negative_factors.set_index("Feature"),
+                    horizontal=True
                 )
             else:
                 st.info("No negative contributing factors found.")
@@ -638,6 +705,84 @@ try:
             "Metrics evaluated on the held-out synthetic test dataset (200 records)."
         )
 
+        st.divider()
+        st.subheader("Model Comparison (5-Fold Cross-Validation)")
+
+        st.caption(
+            "Comparison of six model configurations using the same "
+            "stratified cross-validation setup."
+        )
+
+        comparison_data = pd.DataFrame(comparison["models"])
+
+        comparison_data = comparison_data.rename(columns={
+            "model": "Model",
+            "cv_accuracy": "Accuracy",
+            "cv_precision": "Precision",
+            "cv_recall": "Recall",
+            "cv_f1": "F1 Score",
+            "cv_roc_auc": "ROC-AUC",
+            "cv_f1_std": "F1 Std"
+        })
+
+        metric_columns = [
+            "Accuracy",
+            "Precision",
+            "Recall",
+            "F1 Score",
+            "ROC-AUC",
+            "F1 Std"
+        ]
+
+        comparison_data[metric_columns] = (
+            comparison_data[metric_columns] * 100
+        ).round(2)
+
+        st.dataframe(
+            comparison_data,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.write("### F1 Score vs ROC-AUC Comparison")
+
+        chart_data = comparison_data.melt(
+            id_vars=["Model"],
+            value_vars=["F1 Score", "ROC-AUC"],
+            var_name="Metric",
+            value_name="Score"
+        )
+
+        comparison_chart = alt.Chart(chart_data).mark_bar().encode(
+            x=alt.X(
+                "Score:Q",
+                title="Score (%)",
+                scale=alt.Scale(domain=[0, 100])
+            ),
+            y=alt.Y(
+                "Model:N",
+                title="Model Configuration",
+                sort=alt.SortField(
+                    field="Score",
+                    order="descending"
+                ),
+                axis=alt.Axis(labelLimit=400)
+            ),
+            color=alt.Color(
+                "Metric:N",
+                title="Performance Metric"
+            ),
+            yOffset="Metric:N",
+            tooltip=["Model", "Metric", "Score"]
+        ).properties(
+            height=400
+        )
+
+        st.altair_chart(
+            comparison_chart,
+            use_container_width=True
+        )
+
         metric1, metric2, metric3, metric4, metric5 = st.columns(5)
 
         metric1.metric("Accuracy", f"{evaluation['accuracy'] * 100:.2f}%")
@@ -690,6 +835,115 @@ try:
             horizontal=True,
             height=270
         )
+
+        # Probability Calibration Analysis
+        st.divider()
+        st.subheader("Probability Calibration Analysis")
+
+        calibration = evaluation["calibration"]
+
+        st.metric(
+            "Brier Score",
+            f"{calibration['brier_score']:.4f}"
+        )
+
+        st.caption(
+            "Lower Brier Score indicates better probability accuracy. "
+            "Results are based on the held-out synthetic test dataset."
+        )
+
+        calibration_data = calibration["calibration_curve"]
+
+        chart_records = []
+
+        for point in calibration_data:
+            chart_records.append({
+                "Predicted Probability": point["mean_predicted_probability"],
+                "Rate": point["fraction_of_positives"],
+                "Metric": "Actual Placement Rate"
+            })
+
+            chart_records.append({
+                "Predicted Probability": point["mean_predicted_probability"],
+                "Rate": point["mean_predicted_probability"],
+                "Metric": "Predicted Probability"
+            })
+
+        chart_records.extend([
+            {
+                "Predicted Probability": 0.0,
+                "Rate": 0.0,
+                "Metric": "Ideal Calibration"
+            },
+            {
+                "Predicted Probability": 1.0,
+                "Rate": 1.0,
+                "Metric": "Ideal Calibration"
+            }
+        ])
+
+        calibration_chart_data = pd.DataFrame(chart_records)
+
+        calibration_chart = alt.Chart(
+            calibration_chart_data
+        ).mark_line(
+            point=True
+        ).encode(
+            x=alt.X(
+                "Predicted Probability:Q",
+                title="Mean Predicted Probability",
+                axis=alt.Axis(format="%")
+            ),
+            y=alt.Y(
+                "Rate:Q",
+                title="Actual / Predicted Placement Rate",
+                scale=alt.Scale(domain=[0, 1]),
+                axis=alt.Axis(format="%")
+            ),
+            color=alt.Color(
+                "Metric:N",
+                title="Calibration Metric"
+            ),
+            detail="Metric:N",
+            order=alt.Order("Predicted Probability:Q"),
+            tooltip=[
+                "Predicted Probability",
+                "Rate",
+                "Metric"
+            ]
+        ).properties(
+            height=350
+        )
+
+        st.altair_chart(
+            calibration_chart,
+            use_container_width=True
+        )
+        calibration_data = pd.DataFrame(
+            calibration["calibration_curve"]
+        )
+
+        calibration_chart_data = pd.concat(
+            [
+                calibration_data.assign(
+                    Line="Actual Placement Rate"
+                ).rename(
+                    columns={
+                        "fraction_of_positives": "Probability"
+                    }
+                ),
+                calibration_data.assign(
+                    Line="Predicted Probability"
+                ).rename(
+                    columns={
+                        "mean_predicted_probability": "Probability"
+                    }
+                )
+            ],
+            ignore_index=True
+        )
+
+        
 
         # Analytics charts
         st.subheader("📈 Placement Analytics")
@@ -1040,6 +1294,326 @@ try:
             display_df,
             use_container_width=True,
             hide_index=True
+        )
+
+    if selected_page == "Company Drive Intelligence":
+
+        st.divider()
+        st.subheader("Company Drive Intelligence")
+
+        st.caption(
+            "Configure company eligibility requirements "
+            "to evaluate students for a placement drive."
+        )
+
+        criteria = DEFAULT_COMPANY_CRITERIA.copy()
+
+        st.write("### Company Eligibility Criteria")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            criteria["min_cgpa"] = st.number_input(
+                "Minimum CGPA",
+                min_value=0.0,
+                max_value=10.0,
+                value=float(criteria["min_cgpa"]),
+                step=0.1
+            )
+
+            criteria["min_tenth_percentage"] = st.number_input(
+                "Minimum 10th Percentage",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(criteria["min_tenth_percentage"]),
+                step=1.0
+            )
+
+            criteria["min_twelfth_percentage"] = st.number_input(
+                "Minimum 12th Percentage",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(criteria["min_twelfth_percentage"]),
+                step=1.0
+            )
+
+            criteria["max_backlogs"] = st.number_input(
+                "Maximum Backlogs",
+                min_value=0,
+                max_value=20,
+                value=int(criteria["max_backlogs"]),
+                step=1
+            )
+
+        with col2:
+            criteria["min_aptitude_score"] = st.number_input(
+                "Minimum Aptitude Score",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(criteria["min_aptitude_score"]),
+                step=1.0
+            )
+
+            criteria["min_technical_skills_score"] = st.number_input(
+                "Minimum Technical Skills Score",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(criteria["min_technical_skills_score"]),
+                step=1.0
+            )
+
+            criteria["min_communication_skills_score"] = st.number_input(
+                "Minimum Communication Skills Score",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(criteria["min_communication_skills_score"]),
+                step=1.0
+            )
+
+            criteria["internship_required"] = st.checkbox(
+                "Internship Experience Required",
+                value=criteria["internship_required"]
+            )
+
+        st.divider()
+        st.write("### Eligibility Analysis")
+
+        drive_results = evaluate_company_drive(
+            all_results,
+            criteria
+        )
+
+        drive_summary = get_company_drive_summary(
+            drive_results
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(
+                "Total Students",
+                drive_summary["total_students"]
+            )
+
+        with col2:
+            st.metric(
+                "Eligible Students",
+                drive_summary["eligible_students"]
+            )
+
+        col3, col4 = st.columns(2)
+
+        with col3:
+            st.metric(
+                "Not Eligible",
+                drive_summary["not_eligible_students"]
+            )
+
+        with col4:
+            st.metric(
+                "Near Eligible",
+                drive_summary["near_eligible_students"]
+            )
+
+        st.metric(
+            "Eligibility Percentage",
+            f'{drive_summary["eligibility_percentage"]}%'
+        )
+        st.divider()
+        st.write("### Student-wise Eligibility Details")
+
+        display_columns = [
+            "student_id",
+            "eligibility_status",
+            "failed_criteria",
+            "near_eligible",
+            "improvement_area",
+            "improvement_gap"
+        ]
+
+        available_columns = [
+            col for col in display_columns
+            if col in drive_results.columns
+        ]
+
+        st.dataframe(
+            drive_results[available_columns],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.divider()
+        st.write("### Download Company Drive Report")
+
+        company_report = drive_results[available_columns].copy()
+
+        csv_report = company_report.to_csv(
+            index=False
+        ).encode("utf-8")
+
+        st.download_button(
+            label="Download CSV Report",
+            data=csv_report,
+            file_name="company_drive_report.csv",
+            mime="text/csv"
+        )
+
+        excel_buffer = io.BytesIO()
+
+        with pd.ExcelWriter(
+            excel_buffer,
+            engine="openpyxl"
+        ) as writer:
+            company_report.to_excel(
+                writer,
+                index=False,
+                sheet_name="Company Drive Report"
+            )
+
+        st.download_button(
+            label="Download Excel Report",
+            data=excel_buffer.getvalue(),
+            file_name="company_drive_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.divider()
+        st.write("### Eligible Students Shortlist")
+
+        eligible_shortlist = drive_results[
+            drive_results["eligibility_status"] == "Eligible"
+        ].copy()
+
+        shortlist_columns = [
+            "student_id",
+            "cgpa",
+            "tenth_percentage",
+            "twelfth_percentage",
+            "backlogs",
+            "aptitude_score",
+            "technical_skills_score",
+            "communication_skills_score",
+            "internship_experience",
+            "predicted_placement",
+            "placement_probability",
+            "risk_level",
+            "recommended_training"
+        ]
+
+        available_shortlist_columns = [
+            col for col in shortlist_columns
+            if col in eligible_shortlist.columns
+        ]
+
+        eligible_shortlist = eligible_shortlist[
+            available_shortlist_columns
+        ]
+
+        st.metric(
+            "Total Eligible Students",
+            len(eligible_shortlist)
+        )
+
+        st.dataframe(
+            eligible_shortlist,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        shortlist_csv = eligible_shortlist.to_csv(
+            index=False
+        ).encode("utf-8")
+
+        st.download_button(
+            label="Download Eligible Shortlist (CSV)",
+            data=shortlist_csv,
+            file_name="eligible_students_shortlist.csv",
+            mime="text/csv"
+        )
+
+        shortlist_excel_buffer = io.BytesIO()
+
+        with pd.ExcelWriter(
+            shortlist_excel_buffer,
+            engine="openpyxl"
+        ) as writer:
+            eligible_shortlist.to_excel(
+                writer,
+                index=False,
+                sheet_name="Eligible Shortlist"
+            )
+
+        st.download_button(
+            label="Download Eligible Shortlist (Excel)",
+            data=shortlist_excel_buffer.getvalue(),
+            file_name="eligible_students_shortlist.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.divider()
+        st.write("### Near-Eligible Students Training List")
+
+        near_eligible_students = drive_results[
+            drive_results["near_eligible"] == True
+        ].copy()
+
+        near_eligible_columns = [
+            "student_id",
+            "improvement_area",
+            "improvement_gap",
+            "failed_criteria",
+            "placement_probability",
+            "recommended_training"
+        ]
+
+        available_near_columns = [
+            col for col in near_eligible_columns
+            if col in near_eligible_students.columns
+        ]
+
+        near_eligible_students = near_eligible_students[
+            available_near_columns
+        ]
+
+        st.metric(
+            "Students Needing Targeted Training",
+            len(near_eligible_students)
+        )
+
+        st.dataframe(
+            near_eligible_students,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        near_csv = near_eligible_students.to_csv(
+            index=False
+        ).encode("utf-8")
+
+        st.download_button(
+            label="Download Near-Eligible Report (CSV)",
+            data=near_csv,
+            file_name="near_eligible_students.csv",
+            mime="text/csv"
+        )
+
+        near_excel_buffer = io.BytesIO()
+
+        with pd.ExcelWriter(
+            near_excel_buffer,
+            engine="openpyxl"
+        ) as writer:
+            near_eligible_students.to_excel(
+                writer,
+                index=False,
+                sheet_name="Near Eligible"
+            )
+
+        st.download_button(
+            label="Download Near-Eligible Report (Excel)",
+            data=near_excel_buffer.getvalue(),
+            file_name="near_eligible_students.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
 except Exception as e:
